@@ -43,37 +43,28 @@ struct initialized_test
     std::system(cmdRemoveEmails.c_str());
   }
 
-  const std::string ethalon = 
-    "aleksa\n"
-    "alekse\n"
-    "bob.d\n"
-    "bob.f\n"
-    "bob.m\n"
-    "de\n"
-    "dm\n"
-    "e\n"
-    "mar\n"
-    "max\n"
-    "s\n"
-    "v\n";
+  const size_t ethalon{6};
   const std::string cmdRemoveResults{"rm -f " + RESULT_FILENAME_ALL};
   const std::string cmdRemoveEmails{"rm -f " + EMAIL_FILENAME};
 };
 
 BOOST_FIXTURE_TEST_SUITE(test_suite_main, initialized_test)
 
-void CheckResult(const std::string& ethalon)
+void CheckResult(const size_t ethalon)
 {
   const std::string cmdConcatResults{"cat " + RESULT_FILENAME_ALL + " >> " + RESULT_FILENAME_CONCATENATED};
   const std::string cmdSortResults{"sort -o " + RESULT_FILENAME_SORTED + ' ' + RESULT_FILENAME_CONCATENATED};
 
-  std::system(cmdConcatResults.c_str());  
+  std::system(cmdConcatResults.c_str());
   std::system(cmdSortResults.c_str());
 
   std::ifstream file(RESULT_FILENAME_SORTED, std::ios::in);
-  std::stringstream ss;
-  ss << file.rdbuf();
-  BOOST_REQUIRE_EQUAL(ss.str(), ethalon);
+  std::string digit_str;
+  size_t prefix_size{0};
+  while(std::getline(file, digit_str)) {
+    prefix_size = std::max(prefix_size, static_cast<size_t>(std::stoull(digit_str)));
+  }
+  BOOST_REQUIRE_EQUAL(prefix_size, ethalon);
 }
 
 BOOST_AUTO_TEST_CASE(check_one_reduce_file_exist)
