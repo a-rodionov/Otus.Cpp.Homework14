@@ -1,4 +1,6 @@
 #include "functions.h"
+#include "MapFunctor.h"
+#include "ReduceFunctor.h"
 #include "map_reduce_framework.h"
 #include <fstream>
 #include <algorithm>
@@ -64,41 +66,12 @@ void CheckInputParameters(int argc,
   }
 }
 
-auto MapFunction(const std::string& line) {
-  std::list<std::string> result{line.size()};
-  std::generate(result.begin(),
-                result.end(),
-                [pos = 1, &line] () mutable {
-                  return line.substr(0, pos++);
-                });
-  return result;
-}
-
-auto ReduceFunction(const std::list<std::string>& lines) {
-  std::list<std::string> result;
-  size_t prefix_size{0};
-  auto currentPosition = lines.cbegin();
-  auto end = lines.cend();
-  while(currentPosition != end) {
-    currentPosition = std::adjacent_find(currentPosition, lines.cend());
-    if(end == currentPosition) {
-      break;
-    }
-    prefix_size = std::max(prefix_size, currentPosition->size()+1);
-    auto previousCurrentPosition = currentPosition;
-    do {
-      ++currentPosition;
-    }
-    while((currentPosition != end)
-          && (*currentPosition == *previousCurrentPosition));
-  }
-  result.push_back(std::to_string(prefix_size));
-  return result;
-};
-
 void Process(const std::string& filename,
              const unsigned short mnum,
              const unsigned short rnum)
 {
-  MapReduceExecute(filename, RESULT_FILENAME_TEMPLATE, mnum, rnum, MapFunction, ReduceFunction);
+  MapReduceExecute<MapFunctor, ReduceFunctor>(filename,
+                                              RESULT_FILENAME_TEMPLATE,
+                                              mnum,
+                                              rnum);
 }
