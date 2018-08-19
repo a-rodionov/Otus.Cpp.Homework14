@@ -24,8 +24,6 @@ endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 # Создание целей
 add_executable(yamr main.cpp)
 
-      add_executable(gen gen.cpp)
-
 add_library(yamr_lib STATIC functions.cpp map_reduce_framework.cpp)
 
 # Настройка для всех целей
