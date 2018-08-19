@@ -76,26 +76,23 @@ auto MapFunction(const std::string& line) {
 
 auto ReduceFunction(const std::list<std::string>& lines) {
   std::list<std::string> result;
+  size_t prefix_size{0};
   auto currentPosition = lines.cbegin();
   auto end = lines.cend();
   while(currentPosition != end) {
-    auto range = std::equal_range(currentPosition,
-                                  end,
-                                  *currentPosition);
-    if(1 == std::distance(range.first, range.second)) {
-      result.push_back(*currentPosition);
-      currentPosition = std::upper_bound(currentPosition,
-                                        end,
-                                        *currentPosition,
-                                        [] (const auto& lhs, const auto& rhs) {
-                                          if( 0 == rhs.find(lhs) )
-                                            return false;
-                                          return true;
-                                        });
+    currentPosition = std::adjacent_find(currentPosition, lines.cend());
+    if(end == currentPosition) {
+      break;
     }
-    else
-      currentPosition = range.second;
+    prefix_size = std::max(prefix_size, currentPosition->size()+1);
+    auto previousCurrentPosition = currentPosition;
+    do {
+      ++currentPosition;
+    }
+    while((currentPosition != end)
+          && (*currentPosition == *previousCurrentPosition));
   }
+  result.push_back(std::to_string(prefix_size));
   return result;
 };
 

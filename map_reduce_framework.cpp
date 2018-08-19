@@ -28,7 +28,9 @@ static std::vector<size_t> SplitFile(const std::string& filename, const size_t p
   std::vector<size_t> fileParts;
   fileParts.reserve(partsNum);
   const auto filesize = GetFileSize(filename);
-  const auto partSize = filesize / partsNum;
+  const auto partSize = filesize % partsNum
+                        ? filesize / partsNum + 1
+                        : filesize / partsNum;
   std::iostream::pos_type currentPosition{0};
 
   std::ifstream file(filename, std::ios::in);
@@ -102,7 +104,7 @@ static void MapCaller(const std::string& filename,
 
 static void Shuffle(std::list<std::string>& map_results,
                     std::vector<std::list<std::string>>& reduceParts,
-                    std::mutex& parts_for_reduce_mutex)
+                    std::vector<std::mutex>& parts_for_reduce_mutexes)
 {
   auto begin = map_results.cbegin();
   auto end = map_results.cend();
@@ -112,11 +114,22 @@ static void Shuffle(std::list<std::string>& map_results,
       continue;
     }
     auto reduceIdx = (*begin)[0] % reduceParts.size();
-    auto range = std::equal_range(begin, end, *begin);
-    std::lock_guard<std::mutex> lock(parts_for_reduce_mutex);
-    auto pos = std::lower_bound(reduceParts[reduceIdx].cbegin(), reduceParts[reduceIdx].cend(), *begin);
-    reduceParts[reduceIdx].splice(pos, map_results, range.first, range.second);
-    begin = range.second;
+    auto rangeEnd = std::upper_bound(begin,
+                                    end,
+                                    *begin,
+                                    [] (const auto& lhs, const auto& rhs)
+                                    {
+                                      if(rhs.empty())
+                                        return true;
+                                      return lhs[0] < rhs[0];
+                                    });
+    std::lock_guard<std::mutex> lock(parts_for_reduce_mutexes[reduceIdx]);
+    auto reduceItems = reduceParts[reduceIdx].size();
+    reduceParts[reduceIdx].splice(reduceParts[reduceIdx].cend(), map_results, begin, rangeEnd);
+    auto middleItr = reduceParts[reduceIdx].begin();
+    std::advance(middleItr, reduceItems);
+    std::inplace_merge(reduceParts[reduceIdx].begin(), middleItr, reduceParts[reduceIdx].end());
+    begin = rangeEnd;
   }
 }
 
@@ -150,7 +163,7 @@ void MapReduceExecute(const std::string& inFilename,
 {
   auto parts_for_map{SplitFile(inFilename, map_threads_num)};
 
-  std::vector<std::list<std::string>> map_results(parts_for_map.size());
+  std::vector<std::list<std::string>> map_results(parts_for_map.size()-1);
   RunThreads([&inFilename, &parts_for_map, &map_results, &mapFunction] (const size_t i) {
               MapCaller(inFilename,
                         parts_for_map[i],
@@ -158,15 +171,15 @@ void MapReduceExecute(const std::string& inFilename,
                         map_results[i],
                         mapFunction);
             },
-            parts_for_map.size());
+            parts_for_map.size()-1);
   parts_for_map.clear();
 
-  std::mutex parts_for_reduce_mutex;
+  std::vector<std::mutex> parts_for_reduce_mutexes(reduce_threads_num);
   std::vector<std::list<std::string>> parts_for_reduce(reduce_threads_num);
-  RunThreads([&map_results, &parts_for_reduce, &parts_for_reduce_mutex] (const size_t i) {
+  RunThreads([&map_results, &parts_for_reduce, &parts_for_reduce_mutexes] (const size_t i) {
               Shuffle(map_results[i],
                       parts_for_reduce,
-                      parts_for_reduce_mutex);
+                      parts_for_reduce_mutexes);
             },
             map_results.size());
   map_results.clear();

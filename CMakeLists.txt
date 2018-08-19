@@ -11,11 +11,20 @@ project(yamr VERSION 1.0.${PATCH_VERSION})
 find_package(Threads)
 find_package(Boost COMPONENTS unit_test_framework system thread log REQUIRED)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/debug)
+  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/debug)
+elseif ((CMAKE_BUILD_TYPE STREQUAL "Release")
+        OR (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+        OR (CMAKE_BUILD_TYPE STREQUAL "MinSizeRel"))
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/release)
+  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/release)
+endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 
 # Создание целей
 add_executable(yamr main.cpp)
+
+      add_executable(gen gen.cpp)
 
 add_library(yamr_lib STATIC functions.cpp map_reduce_framework.cpp)
 

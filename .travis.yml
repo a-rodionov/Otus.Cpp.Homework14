@@ -9,7 +9,7 @@ install:
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 999 --slave /usr/bin/g++ g++ /usr/bin/g++-7
   - sudo update-alternatives --auto gcc
 script:
-  - cmake .
+  - cmake -DCMAKE_BUILD_TYPE=Release .
   - cmake --build .
   - cmake --build . --target test
   - cmake --build . --target package
